@@ -1,0 +1,26 @@
+{
+  "name": "nu-cli",
+  "version": "1.0.0",
+  "description": "Command Line tools build to operate NU Sci services",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Northeastern-Science-Magazine/nu-cli"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Northeastern-Science-Magazine/nu-cli/issues"
+  },
+  "homepage": "https://github.com/Northeastern-Science-Magazine/nu-cli#readme",
+  "dependencies": {
+    "commander": "^12.1.0"
+  },
+  "bin": {
+    "nu-cli": "./index.js"
+  }
+}
