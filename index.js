@@ -10,6 +10,8 @@ const nucli = new Command();
  * The .env file in this will contain all data necessary
  * to build .env files across all single service and
  * connected service environments.
+ *
+ * procedurally create them and then add them to the cwd
  */
 
 nucli
