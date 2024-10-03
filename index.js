@@ -34,17 +34,17 @@ function link() {
   const config = readFileSync(configPath, "utf8");
   console.log(`Linking service: ${config}`);
 
-  try {
-    execSync(`docker compose up -d`, { stdio: "inherit" });
-    console.log("Service linked successfully.");
-  } catch (error) {
-    console.error("Error while linking service:", error.message);
-    process.exit(1);
-  }
+  //   try {
+  //     execSync(`docker compose up -d`, { stdio: "inherit" });
+  //     console.log("Service linked successfully.");
+  //   } catch (error) {
+  //     console.error("Error while linking service:", error.message);
+  //     process.exit(1);
+  //   }
 }
 
 function rebuildWithEnv(envName) {
-  if (!["single-service", "ss", "connected-service", "cs"].includes(envName)) {
+  if (!["single-service", "ss", "connected-service", "cs", "remote-service", "rs"].includes(envName)) {
     console.error("invalid environment type given");
   }
 
@@ -70,6 +70,7 @@ function status() {
   //draw the status of the container services
   // disconnected if disconnected
   // connected if connected
+  // cloud if remote service
 }
 
 if (options.link) {

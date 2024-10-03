@@ -21,6 +21,6 @@
     "commander": "^12.1.0"
   },
   "bin": {
-    "nu-cli": "./index.js"
+    "nucli": "./index.js"
   }
 }
