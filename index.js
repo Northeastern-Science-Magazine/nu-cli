@@ -42,6 +42,10 @@ function link() {
 }
 
 function rebuildWithEnv(envName) {
+  if (!["single-service", "ss", "connected-service", "cs"].includes(envName)) {
+    console.error("invalid environment type given");
+  }
+
   const envPath = path.join(process.cwd(), `.env.${envName}`);
 
   if (!existsSync(envPath)) {
