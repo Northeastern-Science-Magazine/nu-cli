@@ -6,9 +6,16 @@ import path from "path";
 
 const nucli = new Command();
 
+/**
+ * The .env file in this will contain all data necessary
+ * to build .env files across all single service and
+ * connected service environments.
+ */
+
 nucli
   .option("-l, --link", "Link this service to the CLI")
-  .option("--env <envName>", "Rebuild the service using an alternative .env file");
+  .option("--env <envName>", "Rebuild the service using an alternative .env file")
+  .option("-s, --status", "The status of the linked services");
 
 nucli.parse(process.argv);
 
@@ -18,7 +25,7 @@ function link() {
   const configPath = path.join(process.cwd(), "nucli.config.json");
 
   if (!existsSync(configPath)) {
-    console.error("Error: nucli.config file not found. Please make sure you're in the correct directory.");
+    console.error("Error: nucli.config.json file not found. Please make sure you're in the correct directory.");
     process.exit(1);
   }
 
@@ -53,10 +60,20 @@ function rebuildWithEnv(envName) {
   }
 }
 
+function status() {
+  //draw the status of the container services
+  // disconnected if disconnected
+  // connected if connected
+}
+
 if (options.link) {
   link();
 }
 
 if (options.env) {
   rebuildWithEnv(options.env);
+}
+
+if (options.status) {
+  status();
 }
