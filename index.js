@@ -132,7 +132,7 @@ function link() {
  */
 function unlink() {
   const configData = checkConfig();
-  console.log(`Unlinking ${configData.service} service from the nu-cli`);
+  console.log(`Unlinking all services from the nu-cli`);
 
   executeDocker("down");
   ["backend", "frontend", "database"].forEach((srv) => updateStatus(srv, ""));
@@ -242,7 +242,7 @@ function status() {
 
 nucli.command("link").description("Link this service to the CLI").action(link);
 
-nucli.command("unlink").description("Unlink this service from the CLI").action(unlink);
+nucli.command("unlink").description("Unlink all services from the CLI").action(unlink);
 
 nucli.command("env <environment> [database]").description("Changes the Docker environment.").action(changeEnvironments);
 
