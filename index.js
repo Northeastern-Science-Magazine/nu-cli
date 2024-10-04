@@ -198,11 +198,26 @@ function status() {
   const statusPath = path.join(__dirname, "cli-status.json");
   const statusData = JSON.parse(readFileSync(statusPath, "utf8"));
   const elements = {
-    FE: `┏━━┓\n┃FE┃\n┗━━┛`,
-    BE: `┏━━┓\n┃BE┃\n┗━━┛`,
-    DB: `┏━━┓\n┃DB┃\n┗━━┛`,
-    REMOTE: `┏╌╌┓\n┆DB┆\n┗╌╌┛`,
-    CONN: `\n<---\n    \n--->`,
+    FE: `
+┏━━┓
+┃FE┃
+┗━━┛`,
+    BE: `
+┏━━┓
+┃BE┃
+┗━━┛`,
+    DB: `
+┏━━┓
+┃DB┃
+┗━━┛`,
+    REMOTE: `
+┏╌╌┓
+┆DB┆
+┗╌╌┛`,
+    CONN: `
+<---
+    
+--->`,
   };
 
   const statusOutput = [
