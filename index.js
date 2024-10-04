@@ -119,6 +119,7 @@ function link() {
     updateStatus(service, environment);
     updateStatus("database", database);
     console.log("Service linked successfully.", service, environment, database);
+    status();
   } catch (error) {
     console.error("Error while linking service:", error.message);
     process.exit(1);
@@ -136,7 +137,8 @@ function unlink() {
     updateStatus("backend", "");
     updateStatus("frontend", "");
     updateStatus("database", "");
-    console.log("Service unlinked successfully.");
+    console.log("Services unlinked successfully.");
+    status();
   } catch (error) {
     console.error("Error while unlinking service:", error.message);
     process.exit(1);
@@ -156,7 +158,8 @@ function changeEnvironments(serviceEnvironment, databaseEnvironemnt) {
     execSync(`docker compose --project-name nusci up -d`, { stdio: "ignore" });
     updateStatus(service, environment);
     updateStatus("database", database);
-    console.log("Service linked successfully.");
+    console.log("Environment successfully changed.");
+    status();
   } catch (error) {
     console.error("Error while changing environments:", error.message);
     process.exit(1);

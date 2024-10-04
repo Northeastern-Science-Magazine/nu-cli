@@ -1,5 +1,5 @@
 {
   "frontend": "",
-  "backend": "single",
-  "database": "remote"
+  "backend": "",
+  "database": ""
 }
