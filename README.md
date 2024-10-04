@@ -3,6 +3,10 @@
 
 A command-line tool designed to manage and operate NU Sci services seamlessly.
 
+### Example Usage
+
+<img width="695" alt="Screenshot 2024-10-03 at 11 33 54 PM" src="https://github.com/user-attachments/assets/063902a5-8489-4d5c-9cfc-b91cabcc8202">
+
 ### Features
 - **Unified Docker Management**
   - Build and manage Docker containers effortlessly within a single Docker Compose project using simple commands.
