@@ -82,12 +82,7 @@ function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
   }
 
   const dbEnvVars =
-    serviceName === "backend"
-      ? configEnv.database[databaseEnvironment === "remote" ? "remote" : resolvedEnvironment]
-      : (() => {
-          console.error("Error: Invalid service name or environment.");
-          process.exit(1);
-        })();
+    serviceName === "backend" ? configEnv.database[databaseEnvironment === "remote" ? "remote" : resolvedEnvironment] : [];
 
   const envFileContent = [...envVars, ...dbEnvVars]
     .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(SS|CS|RS)_/, "")}=${process.env[envVar]}`)
@@ -147,6 +142,12 @@ function unlink() {
  */
 function changeEnvironments(serviceEnvironment, databaseEnvironment) {
   const configData = checkConfig();
+
+  if (databaseEnvironment && databaseEnvironment !== "remote" && serviceEnvironment !== databaseEnvironment) {
+    console.error("Error: The database environment must be 'remote' if specified");
+    process.exit(1);
+  }
+
   const { service, environment, database } = buildEnv(configData.service, serviceEnvironment, databaseEnvironment);
 
   executeDocker("up -d");
@@ -178,7 +179,6 @@ function print(stringsWithColors) {
   const splitStrings = stringsWithColors.map(({ str }) => str.trim().split("\n"));
   const maxLines = Math.max(...splitStrings.map((lines) => lines.length));
   const maxLineLengths = splitStrings.map((lines) => Math.max(...lines.map((line) => line.length)));
-
   const combinedLines = Array.from({ length: maxLines }, (_, lineIndex) => {
     return stringsWithColors
       .map(({ color }, i) => {
@@ -197,33 +197,12 @@ function print(stringsWithColors) {
 function status() {
   const statusPath = path.join(__dirname, "cli-status.json");
   const statusData = JSON.parse(readFileSync(statusPath, "utf8"));
-
   const elements = {
-    FE: `
-┏━━┓
-┃FE┃
-┗━━┛
-`,
-    BE: `
-┏━━┓
-┃BE┃
-┗━━┛
-`,
-    DB: `
-┏━━┓
-┃DB┃
-┗━━┛
-`,
-    REMOTE: `
-┏╌╌┓
-┆DB┆
-┗╌╌┛
-`,
-    CONN: `
-<---
-    
---->
-`,
+    FE: `┏━━┓\n┃FE┃\n┗━━┛`,
+    BE: `┏━━┓\n┃BE┃\n┗━━┛`,
+    DB: `┏━━┓\n┃DB┃\n┗━━┛`,
+    REMOTE: `┏╌╌┓\n┆DB┆\n┗╌╌┛`,
+    CONN: `\n<---\n    \n--->`,
   };
 
   const statusOutput = [
