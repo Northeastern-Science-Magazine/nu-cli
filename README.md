@@ -4,15 +4,19 @@
 A command-line tool designed to manage and operate NU Sci services seamlessly.
 
 ### Features
-- **Unified Docker Management**: Build and manage Docker containers effortlessly within a single Docker Compose project using simple commands.
-- **Automatic `.env` Distribution**: Automatically distribute and manage `.env` files across multiple repositories.
-- **Flexible Environment Switching**: Switch between various Docker environments, including `testing`, `connected`, `remote`, and more, with ease.
-- **Service Status Visualization**: Get a clear view of the status of all linked services.
+- **Unified Docker Management**
+  - Build and manage Docker containers effortlessly within a single Docker Compose project using simple commands.
+- **Automatic `.env` Distribution**
+  - Automatically distribute and manage `.env` files across multiple repositories.
+- **Flexible Environment Switching**
+  - Switch between various Docker environments, including `testing`, `connected`, `remote`, and more, with ease.
+- **Service Status Visualization**
+  - Get a clear view of the status of all linked services.
 
 ### Installation
 1. Clone this repository to your local filesystem:
    ```bash
-   git clone <repository_url>
+   git clone https://github.com/Northeastern-Science-Magazine/nu-cli.git
    ```
 2. Navigate to the root directory where the repository was cloned and run the following commands:
    ```bash
