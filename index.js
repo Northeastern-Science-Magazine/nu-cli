@@ -99,7 +99,7 @@ function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
  */
 function executeDocker(command) {
   try {
-    execSync(`docker compose --project-name nusci ${command}`, { stdio: "ignore" });
+    execSync(`docker compose --project-name nusci ${command}`, { stdio: "ignore", shell: true });
   } catch (error) {
     console.error(`Error while executing Docker command: ${error.message}`);
     process.exit(1);
