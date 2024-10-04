@@ -42,7 +42,7 @@ function checkConfig() {
  *
  * @param {String} serviceName
  */
-function buildEnv(serviceName, environment, database) {
+function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
   dotenv.config({ path: path.join(__dirname, ".env") });
 
   const configEnv = {
@@ -84,7 +84,7 @@ function buildEnv(serviceName, environment, database) {
     process.exit(1);
   }
 
-  const resolvedEnvironment = environment || defaultEnvironments[serviceName];
+  const resolvedEnvironment = serviceEnvironment || defaultEnvironments[serviceName];
   const envVars = configEnv[serviceName]?.[resolvedEnvironment];
 
   if (!envVars) {
@@ -93,7 +93,9 @@ function buildEnv(serviceName, environment, database) {
   }
 
   const dbEnvVars =
-    serviceName === "backend" ? configEnv["database"]?.[database === "remote" ? "remote" : resolvedEnvironment] : [];
+    serviceName === "backend"
+      ? configEnv["database"]?.[databaseEnvironment === "remote" ? "remote" : resolvedEnvironment]
+      : [];
 
   const envFileContent = [...envVars, ...dbEnvVars]
     .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(SS|CS|RS)_/, "")}=${process.env[envVar]}`)
@@ -101,7 +103,7 @@ function buildEnv(serviceName, environment, database) {
 
   writeFileSync(path.join(process.cwd(), ".env"), envFileContent, "utf8");
 
-  return { service: serviceName, environment, database };
+  return { service: serviceName, environment: resolvedEnvironment, database: databaseEnvironment || resolvedEnvironment };
 }
 
 /**
@@ -110,12 +112,13 @@ function buildEnv(serviceName, environment, database) {
 function link() {
   const configData = checkConfig();
   console.log(`Linking ${configData.service} service to the nu-cli`);
-  const { service, environment } = buildEnv(configData.service);
+  const { service, environment, database } = buildEnv(configData.service);
 
   try {
     execSync(`docker compose --project-name nusci up -d`, { stdio: "ignore" });
     updateStatus(service, environment);
-    console.log("Service linked successfully.");
+    updateStatus("database", database);
+    console.log("Service linked successfully.", service, environment, database);
   } catch (error) {
     console.error("Error while linking service:", error.message);
     process.exit(1);
@@ -132,6 +135,7 @@ function unlink() {
     execSync(`docker compose --project-name nusci down`, { stdio: "ignore" });
     updateStatus("backend", "");
     updateStatus("frontend", "");
+    updateStatus("database", "");
     console.log("Service unlinked successfully.");
   } catch (error) {
     console.error("Error while unlinking service:", error.message);
@@ -144,13 +148,14 @@ function unlink() {
  *
  * @param {*} environment
  */
-function changeEnvironments(environment, database) {
+function changeEnvironments(serviceEnvironment, databaseEnvironemnt) {
   const configData = checkConfig();
-  buildEnv(configData.service, environment, database);
+  const { service, environment, database } = buildEnv(configData.service, serviceEnvironment, databaseEnvironemnt);
 
   try {
     execSync(`docker compose --project-name nusci up -d`, { stdio: "ignore" });
-    updateStatus(configData.service, environment);
+    updateStatus(service, environment);
+    updateStatus("database", database);
     console.log("Service linked successfully.");
   } catch (error) {
     console.error("Error while changing environments:", error.message);
@@ -177,20 +182,7 @@ function updateStatus(service, environment) {
   const statusFile = readFileSync(statusPath, "utf8");
   const statusData = JSON.parse(statusFile);
 
-  if (service === "backend") {
-    statusData.backend = environment;
-    if (environment === "single") {
-      statusData.database = "local";
-    } else if (environment === "connected") {
-      statusData.database = "local";
-    } else if (environment === "remote") {
-      statusData.database = "remote";
-    } else {
-      statusData.database = "";
-    }
-  } else if (service === "frontend") {
-    statusData.frontend = environment;
-  }
+  statusData[service] = environment;
   writeFileSync(statusPath, JSON.stringify(statusData, null, 2), "utf8");
 }
 
@@ -243,24 +235,29 @@ function status() {
 --->
 `;
 
-  // const statusOutput = [];
+  const statusOutput = [];
 
-  // let frontendColor = "\x1b[32m";
+  let frontendColor = statusData.frontend ? "\x1b[32m" : "\x1b[90m";
+  statusOutput.push({ str: FE, color: frontendColor });
 
-  // statusOutput.push({ str: FE, color: frontendColor });
+  let feBeCONNColor = statusData.backend === "connected" ? "\x1b[32m" : "\x1b[90m";
+  statusOutput.push({ str: CONN, color: feBeCONNColor });
 
-  // if (statusData.backend) {
-  // }
+  let backendColor = statusData.backend ? "\x1b[32m" : "\x1b[90m";
+  statusOutput.push({ str: BE, color: backendColor });
 
-  // const stringOutput = [
-  //   { str: FE, color: "\x1b[32m" },
-  //   { str: CONN, color: "\x1b[90m" },
-  //   { str: BE, color: "\x1b[32m" },
-  //   { str: CONN, color: "\x1b[32m" },
-  //   { str: DB, color: "\x1b[32m" },
-  // ];
-  // const combined = print(stringOutput);
-  // console.log(combined);
+  let beDbCONNColor = statusData.backend && statusData.database ? "\x1b[32m" : "\x1b[90m";
+  statusOutput.push({ str: CONN, color: beDbCONNColor });
+
+  let databaseColor = statusData.database ? "\x1b[32m" : "\x1b[90m";
+  if (statusData.database === "remote") {
+    statusOutput.push({ str: REMOTE, color: databaseColor });
+  } else {
+    statusOutput.push({ str: DB, color: databaseColor });
+  }
+
+  const status = print(statusOutput);
+  console.log(status);
 }
 
 nucli
