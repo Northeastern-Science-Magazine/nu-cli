@@ -18,7 +18,8 @@
   },
   "homepage": "https://github.com/Northeastern-Science-Magazine/nu-cli#readme",
   "dependencies": {
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5"
   },
   "bin": {
     "nucli": "./index.js"
