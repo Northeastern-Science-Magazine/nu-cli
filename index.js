@@ -13,15 +13,15 @@ const nucli = new Command();
 const configEnv = {
   frontend: { default: [] },
   backend: {
-    single: ["BE_SS_SERVER_HOSTNAME", "BE_SS_SERVER_PORT", "BE_SS_SERVER_TOKEN_KEY"],
+    testing: ["BE_TS_SERVER_HOSTNAME", "BE_TS_SERVER_PORT", "BE_TS_SERVER_TOKEN_KEY"],
     connected: ["BE_CS_SERVER_HOSTNAME", "BE_CS_SERVER_PORT", "BE_CS_SERVER_TOKEN_KEY"],
   },
   database: {
-    single: [
-      "DB_SS_MONGODB_INITDB_ROOT_USERNAME",
-      "DB_SS_MONGODB_INITDB_ROOT_PASSWORD",
-      "DB_SS_MONGODB_INITDB_PORT",
-      "DB_SS_MONGODB_CONNECTION_STRING",
+    testing: [
+      "DB_TS_MONGODB_INITDB_ROOT_USERNAME",
+      "DB_TS_MONGODB_INITDB_ROOT_PASSWORD",
+      "DB_TS_MONGODB_INITDB_PORT",
+      "DB_TS_MONGODB_CONNECTION_STRING",
     ],
     connected: [
       "DB_CS_MONGODB_INITDB_ROOT_USERNAME",
@@ -40,8 +40,8 @@ const configEnv = {
 
 const defaultEnvironments = {
   frontend: "default",
-  backend: "single",
-  database: "single",
+  backend: "testing",
+  database: "testing",
 };
 
 /**
@@ -85,7 +85,7 @@ function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
     serviceName === "backend" ? configEnv.database[databaseEnvironment === "remote" ? "remote" : resolvedEnvironment] : [];
 
   const envFileContent = [...envVars, ...dbEnvVars]
-    .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(SS|CS|RS)_/, "")}=${process.env[envVar]}`)
+    .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(TS|CS|RS)_/, "")}=${process.env[envVar]}`)
     .join("\n");
 
   writeFileSync(path.join(process.cwd(), ".env"), envFileContent, "utf8");
