@@ -22,7 +22,8 @@ A command-line tool designed to manage and operate NU Sci services seamlessly.
    ```bash
    git clone https://github.com/Northeastern-Science-Magazine/nu-cli.git
    ```
-2. Navigate to the root directory where the repository was cloned and run the following commands:
+2. Add the master `.env` file to the root directory.
+3. Navigate to the root directory where the repository was cloned and run the following commands:
    ```bash
    npm install
    npm link
