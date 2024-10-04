@@ -8,14 +8,44 @@ import path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const nucli = new Command();
 
+const configEnv = {
+  frontend: { default: [] },
+  backend: {
+    single: ["BE_SS_SERVER_HOSTNAME", "BE_SS_SERVER_PORT", "BE_SS_SERVER_TOKEN_KEY"],
+    connected: ["BE_CS_SERVER_HOSTNAME", "BE_CS_SERVER_PORT", "BE_CS_SERVER_TOKEN_KEY"],
+  },
+  database: {
+    single: [
+      "DB_SS_MONGODB_INITDB_ROOT_USERNAME",
+      "DB_SS_MONGODB_INITDB_ROOT_PASSWORD",
+      "DB_SS_MONGODB_INITDB_PORT",
+      "DB_SS_MONGODB_CONNECTION_STRING",
+    ],
+    connected: [
+      "DB_CS_MONGODB_INITDB_ROOT_USERNAME",
+      "DB_CS_MONGODB_INITDB_ROOT_PASSWORD",
+      "DB_CS_MONGODB_INITDB_PORT",
+      "DB_CS_MONGODB_CONNECTION_STRING",
+    ],
+    remote: [
+      "DB_RS_MONGODB_INITDB_ROOT_USERNAME",
+      "DB_RS_MONGODB_INITDB_ROOT_PASSWORD",
+      "DB_RS_MONGODB_INITDB_PORT",
+      "DB_RS_MONGODB_CONNECTION_STRING",
+    ],
+  },
+};
+
+const defaultEnvironments = {
+  frontend: "default",
+  backend: "single",
+  database: "single",
+};
+
 /**
- * Checks this current working directory for a `nucli.config.json` file.
- *
- * Returns the data from the config as a JS object if exists, throws if error.
- *
+ * Checks the current working directory for a `nucli.config.json` file.
  * @returns {Object}
  */
 function checkConfig() {
@@ -27,8 +57,7 @@ function checkConfig() {
   }
 
   try {
-    const nucliConfigFile = readFileSync(configPath, "utf8");
-    return JSON.parse(nucliConfigFile);
+    return JSON.parse(readFileSync(configPath, "utf8"));
   } catch (error) {
     console.error("Error: Invalid nucli.config.json.");
     process.exit(1);
@@ -36,66 +65,29 @@ function checkConfig() {
 }
 
 /**
- * Builds the correct `.env` file for the given `serviceName` and the `environment`.
- *
- * Overwrites/creates the `.env` file in the current working directory.
- *
+ * Builds the correct `.env` file for the given service.
  * @param {String} serviceName
+ * @param {String} serviceEnvironment
+ * @param {String} databaseEnvironment
  */
 function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
   dotenv.config({ path: path.join(__dirname, ".env") });
 
-  const configEnv = {
-    frontend: { default: [] },
-    backend: {
-      single: ["BE_SS_SERVER_HOSTNAME", "BE_SS_SERVER_PORT", "BE_SS_SERVER_TOKEN_KEY"],
-      connected: ["BE_CS_SERVER_HOSTNAME", "BE_CS_SERVER_PORT", "BE_CS_SERVER_TOKEN_KEY"],
-    },
-    database: {
-      single: [
-        "DB_SS_MONGODB_INITDB_ROOT_USERNAME",
-        "DB_SS_MONGODB_INITDB_ROOT_PASSWORD",
-        "DB_SS_MONGODB_INITDB_PORT",
-        "DB_SS_MONGODB_CONNECTION_STRING",
-      ],
-      connected: [
-        "DB_CS_MONGODB_INITDB_ROOT_USERNAME",
-        "DB_CS_MONGODB_INITDB_ROOT_PASSWORD",
-        "DB_CS_MONGODB_INITDB_PORT",
-        "DB_CS_MONGODB_CONNECTION_STRING",
-      ],
-      remote: [
-        "DB_RS_MONGODB_INITDB_ROOT_USERNAME",
-        "DB_RS_MONGODB_INITDB_ROOT_PASSWORD",
-        "DB_RS_MONGODB_INITDB_PORT",
-        "DB_RS_MONGODB_CONNECTION_STRING",
-      ],
-    },
-  };
-
-  const defaultEnvironments = {
-    frontend: "default",
-    backend: "single",
-    database: "single",
-  };
-
-  if (!defaultEnvironments[serviceName]) {
-    console.error("Error: Invalid service name.");
-    process.exit(1);
-  }
-
   const resolvedEnvironment = serviceEnvironment || defaultEnvironments[serviceName];
   const envVars = configEnv[serviceName]?.[resolvedEnvironment];
 
-  if (!envVars) {
-    console.error("Error: Invalid environment.");
+  if (!defaultEnvironments[serviceName] || !envVars) {
+    console.error("Error: Invalid service name or environment.");
     process.exit(1);
   }
 
   const dbEnvVars =
     serviceName === "backend"
-      ? configEnv["database"]?.[databaseEnvironment === "remote" ? "remote" : resolvedEnvironment]
-      : [];
+      ? configEnv.database[databaseEnvironment === "remote" ? "remote" : resolvedEnvironment]
+      : (() => {
+          console.error("Error: Invalid service name or environment.");
+          process.exit(1);
+        })();
 
   const envFileContent = [...envVars, ...dbEnvVars]
     .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(SS|CS|RS)_/, "")}=${process.env[envVar]}`)
@@ -107,23 +99,32 @@ function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
 }
 
 /**
+ * Executes a Docker command and handles errors.
+ * @param {String} command
+ */
+function executeDocker(command) {
+  try {
+    execSync(`docker compose --project-name nusci ${command}`, { stdio: "ignore" });
+  } catch (error) {
+    console.error(`Error while executing Docker command: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+/**
  * Links the project at the cwd to the nu-cli
  */
 function link() {
   const configData = checkConfig();
   console.log(`Linking ${configData.service} service to the nu-cli`);
-  const { service, environment, database } = buildEnv(configData.service);
 
-  try {
-    execSync(`docker compose --project-name nusci up -d`, { stdio: "ignore" });
-    updateStatus(service, environment);
-    updateStatus("database", database);
-    console.log("Service linked successfully.", service, environment, database);
-    status();
-  } catch (error) {
-    console.error("Error while linking service:", error.message);
-    process.exit(1);
-  }
+  const { service, environment, database } = buildEnv(configData.service);
+  executeDocker("up -d");
+
+  updateStatus(service, environment);
+  updateStatus("database", database);
+  console.log("Service linked successfully.");
+  status();
 }
 
 /**
@@ -131,77 +132,62 @@ function link() {
  */
 function unlink() {
   const configData = checkConfig();
-  console.log(`Linking ${configData.service} service to the nu-cli`);
-  try {
-    execSync(`docker compose --project-name nusci down`, { stdio: "ignore" });
-    updateStatus("backend", "");
-    updateStatus("frontend", "");
-    updateStatus("database", "");
-    console.log("Services unlinked successfully.");
-    status();
-  } catch (error) {
-    console.error("Error while unlinking service:", error.message);
-    process.exit(1);
-  }
+  console.log(`Unlinking ${configData.service} service from the nu-cli`);
+
+  executeDocker("down");
+  ["backend", "frontend", "database"].forEach((srv) => updateStatus(srv, ""));
+  console.log("Services unlinked successfully.");
+  status();
 }
 
 /**
  * Changes the environment of the service that is in the cwd
- *
- * @param {*} environment
+ * @param {String} serviceEnvironment
+ * @param {String} databaseEnvironment
  */
-function changeEnvironments(serviceEnvironment, databaseEnvironemnt) {
+function changeEnvironments(serviceEnvironment, databaseEnvironment) {
   const configData = checkConfig();
-  const { service, environment, database } = buildEnv(configData.service, serviceEnvironment, databaseEnvironemnt);
+  const { service, environment, database } = buildEnv(configData.service, serviceEnvironment, databaseEnvironment);
 
-  try {
-    execSync(`docker compose --project-name nusci up -d`, { stdio: "ignore" });
-    updateStatus(service, environment);
-    updateStatus("database", database);
-    console.log("Environment successfully changed.");
-    status();
-  } catch (error) {
-    console.error("Error while changing environments:", error.message);
-    process.exit(1);
-  }
+  executeDocker("up -d");
+  updateStatus(service, environment);
+  updateStatus("database", database);
+  console.log("Environment successfully changed.");
+  status();
 }
 
 /**
- * Updates the `cli-status.json` file to have the
- * given service and environment.
- *
- * frontend:
- * backend: "single" | "connected" | "remote"
- * database: "local" | "remote"
- *
- * Where backend single/connected corresponds to a local database,
- * and a remote backend refers to a remote database.
- *
+ * Updates the `cli-status.json` file to have the given service and environment.
  * @param {String} service frontend | backend
  * @param {String} environment
  */
 function updateStatus(service, environment) {
   const statusPath = path.join(__dirname, "cli-status.json");
-  const statusFile = readFileSync(statusPath, "utf8");
-  const statusData = JSON.parse(statusFile);
+  const statusData = JSON.parse(readFileSync(statusPath, "utf8"));
 
   statusData[service] = environment;
   writeFileSync(statusPath, JSON.stringify(statusData, null, 2), "utf8");
 }
 
+/**
+ * Prints colored strings
+ * @param {Array} stringsWithColors
+ * @returns {String}
+ */
 function print(stringsWithColors) {
   const splitStrings = stringsWithColors.map(({ str }) => str.trim().split("\n"));
   const maxLines = Math.max(...splitStrings.map((lines) => lines.length));
   const maxLineLengths = splitStrings.map((lines) => Math.max(...lines.map((line) => line.length)));
+
   const combinedLines = Array.from({ length: maxLines }, (_, lineIndex) => {
     return stringsWithColors
       .map(({ color }, i) => {
         const line = splitStrings[i][lineIndex] || "";
-        const paddedLine = line.padEnd(maxLineLengths[i], " ");
-        return `${color}${paddedLine}\x1b[0m`;
+        return `${color}${line.padEnd(maxLineLengths[i], " ")}\x1b[0m`;
       })
       .join(" ");
   });
+
   return combinedLines.join("\n");
 }
 
@@ -210,85 +196,56 @@ function print(stringsWithColors) {
  */
 function status() {
   const statusPath = path.join(__dirname, "cli-status.json");
-  const statusFile = readFileSync(statusPath, "utf8");
-  const statusData = JSON.parse(statusFile);
-  const FE = `
+  const statusData = JSON.parse(readFileSync(statusPath, "utf8"));
+
+  const elements = {
+    FE: `
 ┏━━┓
 ┃FE┃
 ┗━━┛
-`;
-  const BE = `
+`,
+    BE: `
 ┏━━┓
 ┃BE┃
 ┗━━┛
-`;
-  const DB = `
+`,
+    DB: `
 ┏━━┓
 ┃DB┃
 ┗━━┛
-`;
-  const REMOTE = `
+`,
+    REMOTE: `
 ┏╌╌┓
 ┆DB┆
 ┗╌╌┛
-`;
-  const CONN = `
+`,
+    CONN: `
 <---
     
 --->
-`;
+`,
+  };
 
-  const statusOutput = [];
+  const statusOutput = [
+    { str: elements.FE, color: statusData.frontend ? "\x1b[32m" : "\x1b[90m" },
+    { str: elements.CONN, color: statusData.backend === "connected" ? "\x1b[32m" : "\x1b[90m" },
+    { str: elements.BE, color: statusData.backend ? "\x1b[32m" : "\x1b[90m" },
+    { str: elements.CONN, color: statusData.backend && statusData.database ? "\x1b[32m" : "\x1b[90m" },
+    {
+      str: statusData.database === "remote" ? elements.REMOTE : elements.DB,
+      color: statusData.database ? "\x1b[32m" : "\x1b[90m",
+    },
+  ];
 
-  let frontendColor = statusData.frontend ? "\x1b[32m" : "\x1b[90m";
-  statusOutput.push({ str: FE, color: frontendColor });
-
-  let feBeCONNColor = statusData.backend === "connected" ? "\x1b[32m" : "\x1b[90m";
-  statusOutput.push({ str: CONN, color: feBeCONNColor });
-
-  let backendColor = statusData.backend ? "\x1b[32m" : "\x1b[90m";
-  statusOutput.push({ str: BE, color: backendColor });
-
-  let beDbCONNColor = statusData.backend && statusData.database ? "\x1b[32m" : "\x1b[90m";
-  statusOutput.push({ str: CONN, color: beDbCONNColor });
-
-  let databaseColor = statusData.database ? "\x1b[32m" : "\x1b[90m";
-  if (statusData.database === "remote") {
-    statusOutput.push({ str: REMOTE, color: databaseColor });
-  } else {
-    statusOutput.push({ str: DB, color: databaseColor });
-  }
-
-  const status = print(statusOutput);
-  console.log(status);
+  console.log(print(statusOutput));
 }
 
-nucli
-  .command("link")
-  .description("Link this service to the CLI")
-  .action(() => {
-    link();
-  });
+nucli.command("link").description("Link this service to the CLI").action(link);
 
-nucli
-  .command("unlink")
-  .description("Unlink this service to the CLI")
-  .action(() => {
-    unlink();
-  });
+nucli.command("unlink").description("Unlink this service from the CLI").action(unlink);
 
-nucli
-  .command("env <environment> [database]")
-  .description("Changes the Docker environment.")
-  .action((environment, database) => {
-    changeEnvironments(environment, database);
-  });
+nucli.command("env <environment> [database]").description("Changes the Docker environment.").action(changeEnvironments);
 
-nucli
-  .command("status")
-  .description("The status of the nu-cli")
-  .action(() => {
-    status();
-  });
+nucli.command("status").description("The status of the nu-cli").action(status);
 
 nucli.parse(process.argv);
