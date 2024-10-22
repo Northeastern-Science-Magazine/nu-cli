@@ -1,5 +1,5 @@
 {
   "frontend": "",
-  "backend": "",
-  "database": ""
+  "backend": "testing",
+  "database": "testing"
 }

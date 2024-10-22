@@ -6,49 +6,20 @@ import { execSync } from "child_process";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 
+// In-Repo imports
+import getEnvVarNames from "./src/service-env-vars.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const nucli = new Command();
 
-const configEnv = {
-  frontend: { default: [] },
-  backend: {
-    testing: ["BE_TS_SERVER_HOSTNAME", "BE_TS_SERVER_PORT", "BE_TS_SERVER_TOKEN_KEY"],
-    connected: ["BE_CS_SERVER_HOSTNAME", "BE_CS_SERVER_PORT", "BE_CS_SERVER_TOKEN_KEY"],
-  },
-  database: {
-    testing: [
-      "DB_TS_MONGODB_INITDB_ROOT_USERNAME",
-      "DB_TS_MONGODB_INITDB_ROOT_PASSWORD",
-      "DB_TS_MONGODB_INITDB_PORT",
-      "DB_TS_MONGODB_CONNECTION_STRING",
-    ],
-    connected: [
-      "DB_CS_MONGODB_INITDB_ROOT_USERNAME",
-      "DB_CS_MONGODB_INITDB_ROOT_PASSWORD",
-      "DB_CS_MONGODB_INITDB_PORT",
-      "DB_CS_MONGODB_CONNECTION_STRING",
-    ],
-    remote: [
-      "DB_RS_MONGODB_INITDB_ROOT_USERNAME",
-      "DB_RS_MONGODB_INITDB_ROOT_PASSWORD",
-      "DB_RS_MONGODB_INITDB_PORT",
-      "DB_RS_MONGODB_CONNECTION_STRING",
-    ],
-  },
-};
-
-const defaultEnvironments = {
-  frontend: "default",
-  backend: "testing",
-  database: "testing",
-};
-
 /**
- * Checks the current working directory for a `nucli.config.json` file.
+ * Returns the JSON of the `nucli.config.json` file in the current working directory. Returns an error
+ * if the `nucli.config.json` file does not exist in the current working directory.
+ *
  * @returns {Object}
  */
-function checkConfig() {
+function getConfigData() {
   const configPath = path.join(process.cwd(), "nucli.config.json");
 
   if (!existsSync(configPath)) {
@@ -65,26 +36,19 @@ function checkConfig() {
 }
 
 /**
- * Builds the correct `.env` file for the given service.
- * @param {String} serviceName
- * @param {String} serviceEnvironment
- * @param {String} databaseEnvironment
+ * Builds the correct `.env` file for the given service and environment. First, we ascertain the env variable
+ * names for the given service and environment combination. Then, we truncate the prefix of the env specific
+ * variables so that they become generically named. These variables are then concatenated into a string, then
+ * written into an `.env` file in the working directory.
+ *
+ * @param {string} serviceName The name of the service you want the env variable names for.
+ * @param {string?} environment The environment of the given service that you want to env variable names for.
+ * @param {string?} databaseEnvironment The optional databaseEnvironment param.
  */
 function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
   dotenv.config({ path: path.join(__dirname, ".env") });
 
-  const resolvedEnvironment = serviceEnvironment || defaultEnvironments[serviceName];
-  const envVars = configEnv[serviceName]?.[resolvedEnvironment];
-
-  if (!defaultEnvironments[serviceName] || !envVars) {
-    console.error("Error: Invalid service name or environment.");
-    process.exit(1);
-  }
-
-  const dbEnvVars =
-    serviceName === "backend" ? configEnv.database[databaseEnvironment === "remote" ? "remote" : resolvedEnvironment] : [];
-
-  const envFileContent = [...envVars, ...dbEnvVars]
+  const envFileContent = getEnvVarNames(serviceName, serviceEnvironment, databaseEnvironment)
     .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(TS|CS|RS)_/, "")}=${process.env[envVar]}`)
     .join("\n");
 
@@ -108,9 +72,15 @@ function executeDocker(command) {
 
 /**
  * Links the project at the cwd to the nu-cli
+ *
+ * @TODO Link will eventually need to merge the compose-yaml files
+ * of all services into a single compose-yaml file in this directory,
+ * with references to each of the paths for (build, volume). Need to
+ * write a set of instructions that replaces the `.` with the relative
+ * path between this directory and the cwd.
  */
 function link() {
-  const configData = checkConfig();
+  const configData = getConfigData();
   console.log(`Linking ${configData.service} service to the nu-cli`);
 
   const { service, environment, database } = buildEnv(configData.service);
@@ -126,7 +96,7 @@ function link() {
  * Unlinks the project at the cwd
  */
 function unlink() {
-  const configData = checkConfig();
+  const configData = getConfigData();
   console.log(`Unlinking all services from the nu-cli`);
 
   executeDocker("down");
@@ -141,7 +111,7 @@ function unlink() {
  * @param {String} databaseEnvironment
  */
 function changeEnvironments(serviceEnvironment, databaseEnvironment) {
-  const configData = checkConfig();
+  const configData = getConfigData();
 
   if (databaseEnvironment && databaseEnvironment !== "remote" && serviceEnvironment !== databaseEnvironment) {
     console.error("Error: The database environment must be 'remote' if specified");
