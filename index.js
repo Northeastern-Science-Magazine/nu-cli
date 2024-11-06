@@ -2,7 +2,7 @@
 import { Command } from "commander";
 import dotenv from "dotenv";
 import { fileURLToPath } from "url";
-import { execSync } from "child_process";
+import buildDocker from "./src/build-docker.js";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 
@@ -45,11 +45,10 @@ function getConfigData() {
  * @param {string?} serviceEnvironment The environment of the given service that you want to env variable names for.
  * @param {string?} databaseEnvironment The optional databaseEnvironment param.
  */
-function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
+function generateEnv(serviceName, serviceEnvironment, databaseEnvironment) {
   dotenv.config({ path: path.join(__dirname, ".env") });
 
   const { service, environment, database, vars } = getEnvVarNames(serviceName, serviceEnvironment, databaseEnvironment);
-
   const envFileContent = vars
     .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(TS|CS|RS)_/, "")}=${process.env[envVar]}`)
     .join("\n");
@@ -60,19 +59,6 @@ function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
 }
 
 /**
- * Executes a Docker command and handles errors.
- * @param {String} command
- */
-function executeDocker(command) {
-  try {
-    execSync(`docker compose --project-name nusci ${command}`, { stdio: "ignore", shell: true });
-  } catch (error) {
-    console.error(`Error while executing Docker command: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-/**
  * Links the project at the cwd to the nu-cli
  *
  * @TODO Link will eventually need to merge the compose-yaml files
@@ -80,13 +66,20 @@ function executeDocker(command) {
  * with references to each of the paths for (build, volume). Need to
  * write a set of instructions that replaces the `.` with the relative
  * path between this directory and the cwd.
+ * https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/
+ * https://docs.docker.com/compose/how-tos/multiple-compose-files/extends/
+ * https://docs.docker.com/compose/how-tos/multiple-compose-files/include/
+ * Probably merge or have a program to merge the yaml files that are linked
+ * to the CLI and then save it here. Then write it back to the directory and
+ * then call compose. gitignores on both.
+ *
  */
 function link() {
   const configData = getConfigData();
   console.log(`Linking ${configData.service} service to the nu-cli`);
 
-  const { service, environment, database } = buildEnv(configData.service);
-  executeDocker("up -d");
+  const { service, environment, database } = generateEnv(configData.service);
+  buildDocker("up -d");
 
   updateStatus(service, environment);
   updateStatus("database", database);
@@ -101,7 +94,7 @@ function unlink() {
   const configData = getConfigData();
   console.log(`Unlinking all services from the nu-cli`);
 
-  executeDocker("down");
+  buildDocker("down");
   ["backend", "frontend", "database"].forEach((srv) => updateStatus(srv, ""));
   console.log("Services unlinked successfully.");
   status();
@@ -120,9 +113,9 @@ function changeEnvironments(serviceEnvironment, databaseEnvironment) {
     process.exit(1);
   }
 
-  const { service, environment, database } = buildEnv(configData.service, serviceEnvironment, databaseEnvironment);
+  const { service, environment, database } = generateEnv(configData.service, serviceEnvironment, databaseEnvironment);
 
-  executeDocker("up -d");
+  buildDocker("up -d");
   updateStatus(service, environment);
   updateStatus("database", database);
   console.log("Environment successfully changed.");
