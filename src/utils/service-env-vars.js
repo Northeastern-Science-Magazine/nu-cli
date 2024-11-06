@@ -40,7 +40,7 @@ const defaultServiceEnvironments = {
  * @param {string} serviceName The name of the service you want the env variable names for.
  * @param {string?} environment The environment of the given service that you want to env variable names for.
  * @param {string?} databaseEnvironment The optional databaseEnvironment param.
- * @returns {Array<string>} The Array of env variable names that this service in this particular environment has.
+ * @returns {object} The Array of env variable names that this service in this particular environment has.
  */
 export default function getEnvVarNames(serviceName, environment, databaseEnvironment) {
   // resolved environment, if environment is not given, use the default for this service

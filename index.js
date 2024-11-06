@@ -1,91 +1,17 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import dotenv from "dotenv";
-import { fileURLToPath } from "url";
-import buildDocker from "./src/build-docker.js";
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import path from "path";
 
 // In-Repo imports
-import getEnvVarNames from "./src/service-env-vars.js";
+import { __dirname } from "./cd.js";
+import getConfigData from "./src/utils/get-config-data.js";
+import generateEnv from "./src/utils/generate-env-files.js";
+import buildDocker from "./src/utils/build-docker.js";
+import updateStatus from "./src/utils/update-status.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import status from "./src/status.js";
+import link from "./src/link.js";
+
 const nucli = new Command();
-
-/**
- * Returns the JSON of the `nucli.config.json` file in the current working directory. Returns an error
- * if the `nucli.config.json` file does not exist in the current working directory.
- *
- * @returns {Object}
- */
-function getConfigData() {
-  const configPath = path.join(process.cwd(), "nucli.config.json");
-
-  if (!existsSync(configPath)) {
-    console.error("Error: nucli.config.json file not found. Please ensure you're in the correct directory.");
-    process.exit(1);
-  }
-
-  try {
-    return JSON.parse(readFileSync(configPath, "utf8"));
-  } catch (error) {
-    console.error("Error: Invalid nucli.config.json.");
-    process.exit(1);
-  }
-}
-
-/**
- * Builds the correct `.env` file for the given service and environment. First, we ascertain the env variable
- * names for the given service and environment combination. Then, we truncate the prefix of the env specific
- * variables so that they become generically named. These variables are then concatenated into a string, then
- * written into an `.env` file in the working directory.
- *
- * @param {string} serviceName The name of the service you want the env variable names for.
- * @param {string?} serviceEnvironment The environment of the given service that you want to env variable names for.
- * @param {string?} databaseEnvironment The optional databaseEnvironment param.
- */
-function generateEnv(serviceName, serviceEnvironment, databaseEnvironment) {
-  dotenv.config({ path: path.join(__dirname, ".env") });
-
-  const { service, environment, database, vars } = getEnvVarNames(serviceName, serviceEnvironment, databaseEnvironment);
-  const envFileContent = vars
-    .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(TS|CS|RS)_/, "")}=${process.env[envVar]}`)
-    .join("\n");
-
-  writeFileSync(path.join(process.cwd(), ".env"), envFileContent, "utf8");
-
-  return { service: service, environment: environment, database: database };
-}
-
-/**
- * Links the project at the cwd to the nu-cli
- *
- * @TODO Link will eventually need to merge the compose-yaml files
- * of all services into a single compose-yaml file in this directory,
- * with references to each of the paths for (build, volume). Need to
- * write a set of instructions that replaces the `.` with the relative
- * path between this directory and the cwd.
- * https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/
- * https://docs.docker.com/compose/how-tos/multiple-compose-files/extends/
- * https://docs.docker.com/compose/how-tos/multiple-compose-files/include/
- * Probably merge or have a program to merge the yaml files that are linked
- * to the CLI and then save it here. Then write it back to the directory and
- * then call compose. gitignores on both.
- *
- */
-function link() {
-  const configData = getConfigData();
-  console.log(`Linking ${configData.service} service to the nu-cli`);
-
-  const { service, environment, database } = generateEnv(configData.service);
-  buildDocker("up -d");
-
-  updateStatus(service, environment);
-  updateStatus("database", database);
-  console.log("Service linked successfully.");
-  status();
-}
 
 /**
  * Unlinks the project at the cwd
@@ -120,83 +46,6 @@ function changeEnvironments(serviceEnvironment, databaseEnvironment) {
   updateStatus("database", database);
   console.log("Environment successfully changed.");
   status();
-}
-
-/**
- * Updates the `cli-status.json` file to have the given service and environment.
- * @param {String} service frontend | backend
- * @param {String} environment
- */
-function updateStatus(service, environment) {
-  const statusPath = path.join(__dirname, "cli-status.json");
-  const statusData = JSON.parse(readFileSync(statusPath, "utf8"));
-
-  statusData[service] = environment;
-  writeFileSync(statusPath, JSON.stringify(statusData, null, 2), "utf8");
-}
-
-/**
- * Prints colored strings
- * @param {Array} stringsWithColors
- * @returns {String}
- */
-function print(stringsWithColors) {
-  const splitStrings = stringsWithColors.map(({ str }) => str.trim().split("\n"));
-  const maxLines = Math.max(...splitStrings.map((lines) => lines.length));
-  const maxLineLengths = splitStrings.map((lines) => Math.max(...lines.map((line) => line.length)));
-  const combinedLines = Array.from({ length: maxLines }, (_, lineIndex) => {
-    return stringsWithColors
-      .map(({ color }, i) => {
-        const line = splitStrings[i][lineIndex] || "";
-        return `${color}${line.padEnd(maxLineLengths[i], " ")}\x1b[0m`;
-      })
-      .join(" ");
-  });
-
-  return combinedLines.join("\n");
-}
-
-/**
- * Depicts the status of the cli
- */
-function status() {
-  const statusPath = path.join(__dirname, "cli-status.json");
-  const statusData = JSON.parse(readFileSync(statusPath, "utf8"));
-  const elements = {
-    FE: `
-┏━━┓
-┃FE┃
-┗━━┛`,
-    BE: `
-┏━━┓
-┃BE┃
-┗━━┛`,
-    DB: `
-┏━━┓
-┃DB┃
-┗━━┛`,
-    REMOTE: `
-┏╌╌┓
-┆DB┆
-┗╌╌┛`,
-    CONN: `
-<---
-    
---->`,
-  };
-
-  const statusOutput = [
-    { str: elements.FE, color: statusData.frontend ? "\x1b[32m" : "\x1b[90m" },
-    { str: elements.CONN, color: statusData.backend === "connected" ? "\x1b[32m" : "\x1b[90m" },
-    { str: elements.BE, color: statusData.backend ? "\x1b[32m" : "\x1b[90m" },
-    { str: elements.CONN, color: statusData.backend && statusData.database ? "\x1b[32m" : "\x1b[90m" },
-    {
-      str: statusData.database === "remote" ? elements.REMOTE : elements.DB,
-      color: statusData.database ? "\x1b[32m" : "\x1b[90m",
-    },
-  ];
-
-  console.log(print(statusOutput));
 }
 
 nucli.command("link").description("Link this service to the CLI").action(link);
