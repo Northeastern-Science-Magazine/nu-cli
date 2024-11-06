@@ -42,19 +42,21 @@ function getConfigData() {
  * written into an `.env` file in the working directory.
  *
  * @param {string} serviceName The name of the service you want the env variable names for.
- * @param {string?} environment The environment of the given service that you want to env variable names for.
+ * @param {string?} serviceEnvironment The environment of the given service that you want to env variable names for.
  * @param {string?} databaseEnvironment The optional databaseEnvironment param.
  */
 function buildEnv(serviceName, serviceEnvironment, databaseEnvironment) {
   dotenv.config({ path: path.join(__dirname, ".env") });
 
-  const envFileContent = getEnvVarNames(serviceName, serviceEnvironment, databaseEnvironment)
+  const { service, environment, database, vars } = getEnvVarNames(serviceName, serviceEnvironment, databaseEnvironment);
+
+  const envFileContent = vars
     .map((envVar) => `${envVar.replace(/^(FE_|BE_|DB_)(TS|CS|RS)_/, "")}=${process.env[envVar]}`)
     .join("\n");
 
   writeFileSync(path.join(process.cwd(), ".env"), envFileContent, "utf8");
 
-  return { service: serviceName, environment: resolvedEnvironment, database: databaseEnvironment || resolvedEnvironment };
+  return { service: service, environment: environment, database: database };
 }
 
 /**

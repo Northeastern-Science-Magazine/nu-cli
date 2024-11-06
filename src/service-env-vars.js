@@ -45,10 +45,14 @@ const defaultServiceEnvironments = {
 export default function getEnvVarNames(serviceName, environment, databaseEnvironment) {
   // resolved environment, if environment is not given, use the default for this service
   const resolvedEnvironment = environment ?? defaultServiceEnvironments[serviceName];
-  return [
-    ...serviceEnvVars[serviceName]?.[resolvedEnvironment],
-    ...(serviceName === "backend"
-      ? serviceEnvVars.database[databaseEnvironment === "remote" ? "remote" : resolvedEnvironment]
-      : []),
-  ];
+  const resolvedDatabase = databaseEnvironment === "remote" ? "remote" : resolvedEnvironment;
+  return {
+    service: serviceName,
+    environment: resolvedEnvironment,
+    database: resolvedDatabase,
+    vars: [
+      ...serviceEnvVars[serviceName]?.[resolvedEnvironment],
+      ...(serviceName === "backend" ? serviceEnvVars.database[resolvedDatabase] : []),
+    ],
+  };
 }
