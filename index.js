@@ -10,21 +10,9 @@ import updateStatus from "./src/utils/update-status.js";
 
 import status from "./src/status.js";
 import link from "./src/link.js";
+import unlink from "./src/unlink.js";
 
 const nucli = new Command();
-
-/**
- * Unlinks the project at the cwd
- */
-function unlink() {
-  const configData = getConfigData();
-  console.log(`Unlinking all services from the nu-cli`);
-
-  buildDocker("down");
-  ["backend", "frontend", "database"].forEach((srv) => updateStatus(srv, ""));
-  console.log("Services unlinked successfully.");
-  status();
-}
 
 /**
  * Changes the environment of the service that is in the cwd

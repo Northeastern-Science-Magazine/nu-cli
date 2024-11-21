@@ -52,7 +52,7 @@ export default function getEnvVarNames(serviceName, environment, databaseEnviron
     environment: resolvedEnvironment,
     database: resolvedDatabase,
     vars: [
-      ...serviceEnvVars[serviceName]?.[resolvedEnvironment],
+      ...(serviceEnvVars[serviceName]?.[resolvedEnvironment] || []),
       ...(serviceName === "backend" ? serviceEnvVars.database[resolvedDatabase] : []),
     ],
   };
